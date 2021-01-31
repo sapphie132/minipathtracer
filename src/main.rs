@@ -1,9 +1,9 @@
 mod image;
 mod render_arena;
 mod scene;
+mod util;
 
 use scene::*;
-use image::Image;
 use std::env::args;
 
 fn main() {
@@ -25,8 +25,15 @@ fn main() {
         1
     };
 
-    let scene = Scene::read(&input);
-    let image = render_arena::render(&scene);
+    let scene = match Scene::read(&input) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error reading file: {}", e);
+            return
+        }
+    };
+
+    let image = render_arena::render(&scene, num_threads) ;
     image.write(&output);
 }
 
