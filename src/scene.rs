@@ -1,51 +1,69 @@
-pub struct Scene;
-use super::util;
+use super::util::*;
+use super::Object;
+use super::bsdf::BSDF;
+use super::face::Face;
 
-const SIZE_RESERVED: usize = 32;
-const MAGIC_NUMBER: u16 = 0x420;
-impl Scene {
+use std::fs::File;
+use std::io::{Read, BufReader};
+
+pub struct Scene {
+    faces: Vec<Face>,
+}
+
+
+impl Object for Scene {
     // This reads like C code. Oh well.
     // Bad C code at that. oops.
-    pub fn read(path: &str) -> Result<Scene, String> {
-        let bin = util::read_file(path)?;
-        if bin.len() < SIZE_RESERVED {
-            return Err("Invalid input file".to_owned())
-        }
+    fn deserialize<R: Read>(r: &mut R) -> Result<Scene, String> {
+        let version = u8::deserialize(r)?;
 
-        let mut ptr = 0;
-
-        if bin[ptr] != 0x1 {
+        if version != 0x1 {
             return Err("Invalid version byte".to_owned())
         }
 
-        ptr+=1;
+        let num_vertices = u32::deserialize(r)?;
+        let num_bsdfs = u32::deserialize(r)?;
+        let num_faces = u32::deserialize(r)?;
 
-        fn read_float(p: &mut usize, b: &[u8]) -> f32 {
-            let r = util::read_float(&b[*p..]);
-            *p += util::FLOAT_SIZE;
-            r
-        }
 
-        fn read_uint(p: &mut usize, b: &[u8]) -> u32 {
-            let r = util::read_uint(&b[*p..]);
-            *p += util::UINT_SIZE;
-            r
-        }
-
-        let num_vertices = read_uint(&mut ptr, &bin);
-        let mut vertices: Vec<(f32, f32, f32)> = Vec::with_capacity(num_vertices as usize);
-
-        ptr = SIZE_RESERVED;
+        let mut vertices: Vec<Point3f> = Vec::with_capacity(num_vertices as usize);
 
         for _ in 0..num_vertices {
-            let mut xyz = [0.0; 3];
-            for i in 0..3 {
-                // Rust is a pain with closures
-                xyz[i] = read_float(&mut ptr, &bin);
-            }
-            vertices.push((xyz[0], xyz[1], xyz[2]))
+            vertices.push(Point3f::deserialize(r)?);
         }
 
-        Ok(Scene)
+        let vertices = vertices; // Remove mutability
+        let mut bsdfs: Vec<BSDF> = Vec::with_capacity(num_bsdfs as usize);
+
+        for _ in 0..num_bsdfs {
+            let bsdf = BSDF::deserialize(r)?;
+            bsdfs.push(bsdf)
+        }
+
+        let bsdfs = bsdfs;
+
+        let mut faces: Vec<Point3<u32>> = Vec::with_capacity(num_faces as usize);
+        for _ in 0..num_faces {
+            let face = Point3u::deserialize(r)?;
+            faces.push(face)
+        }
+
+        let faces = faces;
+
+        // todo
+        let faces_processed = Vec::with_capacity(faces.len());
+
+        Ok(Scene{faces: faces_processed})
+    }
+}
+
+impl Scene {
+    pub fn read(path: &str) -> Result<Scene, String> {
+        let file = match File::open(path) {
+            Ok(f) => f,
+            Err(e) => return Err(format!("{}", e))
+        };
+        let mut reader = BufReader::new(file);
+        Scene::deserialize(&mut reader)
     }
 }

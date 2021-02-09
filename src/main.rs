@@ -1,10 +1,17 @@
+mod bsdf;
+mod face;
 mod image;
 mod render_arena;
 mod scene;
 mod util;
 
 use scene::*;
+use std::io::Read;
 use std::env::args;
+
+pub trait Object {
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self, String> where Self: Sized;
+}
 
 fn main() {
     if args().len() < 2 {
