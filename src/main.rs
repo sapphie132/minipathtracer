@@ -9,6 +9,8 @@ use scene::*;
 use std::io::Read;
 use std::env::args;
 
+type float = f32;
+
 pub trait Object {
     fn deserialize<R: Read>(r: &mut R) -> Result<Self, String> where Self: Sized;
 }
